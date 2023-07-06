@@ -1,0 +1,535 @@
+---
+title: "phage trial weather data"
+author: "Kristi Gdanetz MacCready"
+date: '2023-06-23'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE)
+knitr::opts_knit$set(root.dir = "~/Documents/Flower_Microbiome/")
+```
+
+# Load libraries 
+```{r, warning=FALSE, message=FALSE}
+library(tidyverse)
+library(readxl)
+library(lubridate)
+library(weathermetrics)
+library(measurements)
+library(cowplot)
+theme_set(theme_cowplot())
+set.seed(125)
+```
+
+# Custom functions
+### Import solar data
+Tables of daily sunrise and sunset times from datetime.org were copied and pasted into tabs of an Excel spreadsheet for location and year combination. Sunrise and Sunset times were converted from AM/PM to 24hr within Excel, and "Year" column was added (format MM-YYYY). The custom function below imports data from a single spreadsheet tab, converts POSIXct (times) to characters, which will be converted to dttm in another function to be use arithmetically. 
+```{r}
+import_solar <- function(FileLocation, SheetName, Site){
+  NewDF <- read_excel(path = FileLocation, sheet = SheetName, col_names = TRUE,
+                       col_types = c("date", "numeric", "date", "date")) %>%
+  # add missing metadata 
+  add_column(Location = Site) %>%
+  # format times
+  separate(col = "Sunrise", into = c("tmp1", "Sunrise"), sep = " ", remove = TRUE) %>%
+  separate(col = "Sunrise", into = c("Rise_hr", "Rise_min", "Rise_Sec"), 
+           sep = ":", remove = TRUE) %>%
+  separate(col = "Sunset", into = c("tmp2", "Sunset"), sep = " ", remove = TRUE) %>%
+  separate(col = "Sunset", into = c("Set_hr", "Set_min", "Set_Sec"), 
+           sep = ":", remove = TRUE) %>% 
+  separate(col = "Year", into = c("Year", "Month", "tmp3"), sep = "-", remove = TRUE) %>%
+  mutate(Month = recode(Month, "05" = "5"),
+         across(Year:Day, as.numeric)) %>%
+  # drop extra columns 
+  select(-tmp1, -tmp2, -tmp3)
+  return(NewDF)
+}
+```
+
+### Import EnviroWeather
+CSVs of hourly data for duration of study were downloaded from enviroweather.msu.edu > Data on Demand which transfers to mawn.geo.msu.edu, selected Station > Hourly Data and choose options below to generate a custom report:
+  atmp:          Air Temperature [1.5m] (C)
+  pcpn:          Precipitation (mm)
+  relh:          Relative Humidity [1.5m] (%)
+  srad:          Total Solar Flux (kJ/m^2)
+  wspd:          Wind Speed [3m] (m/s)
+  
+Plain text output was copied and pasted into Excel, report and station metadata were removed. Reports from each year and site were pasted as separate tabs in a single spreadsheet. The custom function below imports the spreadsheet containing data downloaded from EnviroWeather. Units are converted to metric, dates and times are converted from POSIXct to characters then numeric, and eventually dttm with another function so times could be used arithmetically. 
+```{r}
+import_enviro <- function(FileLocation, SheetName, Site){
+  NewDF <- read_excel(path = FileLocation, sheet = SheetName, skip = 3,
+                    col_names = TRUE, na = c("", " ", "M", "NA"), 
+                    col_types = c("date", "date", "numeric", "skip", 
+                                  "numeric", "numeric", "numeric", "skip", "skip",
+                                  "numeric", "numeric", "numeric", "numeric", "numeric")) %>%
+  # rename columns
+  rename(Air_temp = atmp,  Precipitation = pcpn,
+         Relative_humidity = relh, Wind_speed = wspd) %>% 
+  add_column(Location = Site) %>%
+  # update metric units 
+  mutate(Wind_speed = conv_unit(Wind_speed, from = "m_per_sec", to = "kph"),
+         J_m2 = srad*1000 ) %>%
+  select(Location, date, time, Air_temp, Precipitation, Relative_humidity, J_m2, Wind_speed) %>%
+   # format date & time 
+  separate(col = "date", into = c("Year", "Month", "Day"), sep = "-", remove = FALSE) %>%
+  separate(col = "time", into = c("tmp1", "Hours"), sep = " ", remove = TRUE) %>%
+  separate(col = "Hours", into = c("Hr", "Min", "Sec"), sep = ":", remove = TRUE) %>%
+  select(-tmp1) %>%
+  mutate(across(Year:Sec, as.numeric))
+  return(NewDF)
+}
+```
+
+### Import NEWA
+CSVs of hourly data for the duration of the study were downloaded from newa.cornell.edu and were combined as tabs within a Microsoft Excel spreadsheet. Degree symbols were manually removed in Excel. The custom function below imports the spreadsheet containing data downloaded from NEWA. Units are converted to metric, dates and times are converted from POSIXct to characters to numeric, and eventually dttm with another function so times could be used arithmetically. 
+```{r}
+import_newa <- function(FileLocation, SheetName, Site) {
+  NewDF <- read_excel(path = FileLocation, sheet = SheetName, col_names = TRUE,
+                   na = c("", " ", "M", "NA"), 
+                   col_types = c("date", "numeric", "numeric", "numeric",
+                                 "numeric", "numeric", "numeric", 
+                                 "numeric", "numeric", "numeric")) %>%
+  # convert degrees, F to C
+  mutate(Air_temp = round(conv_unit(`Air Temp F`, from = "F", to = "C"), 
+                          digits = 1) ) %>%
+  # convert inches to mm 
+  mutate(Precipitation = round(conv_unit(`Precipitation (inches)`, from = "inch", to = "mm"), 
+                               digits = 0) )  %>% 
+  # convert Langleys to Joules / m^2 
+  mutate(J_m2 = (`Solar Radiation (langleys)`)*41840) %>%
+  # convert mph to kph 
+  mutate(Wind_speed = round(conv_unit(`Wind Speed (mph)`, from = "mph", to = "kph"), 
+                            digits = 1) ) %>% 
+  # add missing metadata 
+  add_column(Location = Site) %>% 
+  rename(Relative_humidity = "Relative Humidity (%)") %>%
+  select(Location, date, everything(), -"Air Temp F", -"Leaf Wetness (minutes)", 
+         -"Precipitation (inches)", -"Solar Radiation (langleys)", -"Wind Direction (degrees)", 
+         -"Wind Speed (mph)", -"Soil Temp (F)",  -"Soil Tension (kPa)") %>%
+  # format date & time 
+  separate(col = "date", into = c("Dates", "Hours"), sep = " ", remove = FALSE) %>%
+  separate(col = "Dates", into = c("Year", "Month", "Day"), sep = "-", remove = TRUE) %>%
+  separate(col = "Hours", into = c("Hr", "Min", "Sec"), sep = ":", remove = TRUE) %>%
+  mutate(across(Year:Sec, as.numeric ))
+  return(NewDF)
+}
+```
+
+### Calculate daily and nightly means
+(1) Custom function to combine weather and sunrise/sunset data frames. Combines numeric date and time columns to one ddtm column for sunrise and another for sunset times. 
+(2 & 3) Custom functions to extract day time and night time measurements from combined data frame. Day is after sunrise and before sunset. Night is before sunrise or after sunset. Calculates daily or nightly means of each measurement. 
+```{r}
+combine_dfs <- function(NEWAdf, SolDf){
+  OutDf <- left_join(NEWAdf, SolDf, by = c("Location", "Year", "Month", "Day")) %>%
+    # make datetime variable from individual columns
+    mutate(Measure_time = make_datetime(Year, Month, Day, Hr, Min, Sec), 
+           Rise_time = make_datetime(Year, Month, Day, Rise_hr, Rise_min, Rise_Sec),
+           Set_time = make_datetime(Year, Month, Day, Set_hr, Set_min, Set_Sec) ) %>%
+    # drop extra columns 
+    select(-date, -Month, -Hr, -Min, -Sec, 
+           -Rise_hr, -Rise_min, -Rise_Sec, -Set_hr, -Set_min, -Set_Sec)
+  return(OutDf)
+  }
+
+calc_day_mean <- function(OutDf){
+  # create day time date frame
+  DayDf <- OutDf %>%
+    # after sunrise and before sunset
+    filter(Measure_time > Rise_time & Measure_time < Set_time) %>%
+    # calculate day time means 
+    group_by(Location, Year, Day) %>%
+    summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE))) %>%
+    ungroup() %>%
+    mutate(across(where(is.numeric), ~na_if(.x, "NaN")) )
+  return(DayDf)
+}
+
+calc_nite_mean <- function(OutDf){
+  # create night time data frame 
+  NiteDf <- OutDf %>%
+    # before sunrise or after sunset 
+    filter(Measure_time <= Rise_time | Measure_time >= Set_time) %>%
+    # calculate night time means
+    group_by(Location, Year, Day) %>% 
+    summarise(across(where(is.numeric), ~mean(.x, na.rm = TRUE)) )  %>%
+    ungroup() %>%
+    mutate(across(where(is.numeric), ~na_if(.x, "NaN")) )
+  return(NiteDf)
+}
+```
+
+### Calculate DLI
+Daily light integral (DLI) is mols/m^2/day of photosynthetically active radiation (400-700 nm). NEWA collects solar radiation data in Langelys, which was converted to J/m^2 within the import_newa() function. EnviroWeather collects solar radiation data as solar flux (kJ/m^2), kJ was converted to J within the import_enviro() function. The custom function below converts J/m^2 to DLI. Input is the data frame generated by combine_dfs() function. 
+```{r}
+calc_DLI <- function(OutDf){
+  DLIdf <- OutDf %>%
+    group_by(Location, Year, Day) %>%
+    # Daily total solar flux
+    summarise(J_m2_d = sum(J_m2, na.rm = TRUE)) %>% 
+    ungroup() %>%
+    # 1 W = 1 J/s, divide by the seconds in a day
+    mutate(W_m2_s = J_m2_d/86400,
+           # 0.51 = 400-700 nm spectrum conversion factor
+           umol_m2_s = W_m2_s/0.51, 
+           # 86,400 seconds per day
+           umol_m2_d = umol_m2_s*86400,
+           # 1,000,000 umol per mol
+           DLI = umol_m2_d/1000000 ) %>% 
+    # replace any missing values (0) with NA
+    mutate(across(where(is.numeric), ~na_if(.x, 0)) ) 
+  return(DLIdf)
+}
+```
+
+
+# New York 
+The section below executes each of the custom functions on data from Cornell's Geneva Station. This will generate three data frames of interest, DLI, daily night time averages, daily day time averages. 
+### 2018
+```{r}
+ny18 <- import_newa("weather_data.xlsx", "NY18", "NY")
+
+ny18_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "NY18", "NY") 
+
+ny18_df <- combine_dfs(ny18, ny18_sol)
+
+ny18_DLI <- calc_DLI(ny18_df)
+
+ny18_day <- calc_day_mean(ny18_df)
+
+ny18_nite <- calc_nite_mean(ny18_df)
+```
+
+### 2019
+```{r}
+ny19 <- import_newa("weather_data.xlsx", "NY19", "NY")
+
+ny19_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "NY19", "NY") 
+
+ny19_df <- combine_dfs(ny19, ny19_sol)
+
+ny19_DLI <- calc_DLI(ny19_df)
+
+ny19_day <- calc_day_mean(ny19_df)
+
+ny19_nite <- calc_nite_mean(ny19_df)
+```
+
+### 2020
+```{r}
+ny20 <- import_newa("weather_data.xlsx", "NY20", "NY")
+
+ny20_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "NY20", "NY") 
+
+ny20_df <- combine_dfs(ny20, ny20_sol)
+
+ny20_DLI <- calc_DLI(ny20_df)
+
+ny20_day <- calc_day_mean(ny20_df)
+
+ny20_nite <- calc_nite_mean(ny20_df)
+```
+
+### 2021
+```{r}
+ny21 <- import_newa("weather_data.xlsx", "NY21", "NY")
+
+ny21_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "NY21", "NY") 
+
+ny21_df <- combine_dfs(ny21, ny21_sol)
+
+ny21_DLI <- calc_DLI(ny21_df)
+
+ny21_day <- calc_day_mean(ny21_df)
+
+ny21_nite <- calc_nite_mean(ny21_df)
+```
+
+
+# North Carolina 
+The section below executes each of the custom functions on data from NC State Mill's River Research Station. This will generate three data frames of interest, DLI, daily night time averages, daily day time averages. 
+### 2019
+```{r}
+nc19 <- import_newa("weather_data.xlsx", "NC2019", "NC")
+
+nc19_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "NC19", "NC") 
+
+nc19_df <- combine_dfs(nc19, nc19_sol)
+
+nc19_DLI <- calc_DLI(nc19_df)
+
+nc19_day <- calc_day_mean(nc19_df)
+
+nc19_nite <- calc_nite_mean(nc19_df)
+```
+
+### 2021
+North Carolina 2020 data missing because of COVID. 
+```{r}
+nc21 <- import_newa("weather_data.xlsx", "NC2021", "NC")
+
+nc21_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "NC21", "NC") 
+
+nc21_df <- combine_dfs(nc21, nc21_sol)
+
+nc21_DLI <- calc_DLI(nc21_df)
+
+nc21_day <- calc_day_mean(nc21_df)
+
+nc21_nite <- calc_nite_mean(nc21_df)
+```
+
+###  2022
+```{r}
+nc22 <- import_newa("weather_data.xlsx", "NC2022", "NC")
+
+nc22_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "NC22", "NC") 
+
+nc22_df <- combine_dfs(nc22, nc22_sol)
+
+nc22_DLI <- calc_DLI(nc22_df)
+
+nc22_day <- calc_day_mean(nc22_df)
+
+nc22_nite <- calc_nite_mean(nc22_df)
+```
+
+
+# Conneticut 
+The section below executes each of the custom functions on data from Lockwood Farm CT Agricultural Experiment Station. This will generate three data frames of interest, DLI, daily night time averages, daily day time averages. 
+```{r}
+ct20 <- import_newa("weather_data.xlsx", "CT2020", "CT")
+
+ct20_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "CT20", "CT") 
+
+ct20_df <- combine_dfs(ct20, ct20_sol)
+
+ct20_DLI <- calc_DLI(ct20_df)
+
+ct20_day <- calc_day_mean(ct20_df)
+
+ct20_nite <- calc_nite_mean(ct20_df)
+```
+
+
+# MSU Hort Farm
+The section below executes each of the custom functions on data from MSU Horticulture Farm in East Lansing. This will generate three data frames of interest, DLI, daily night time averages, daily day time averages. 
+### 2017
+```{r}
+msu17 <- import_enviro("weather_data.xlsx", "MSUHort17", "MSU")
+
+msu17_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "EL17", "MSU") 
+
+msu17_df <- combine_dfs(msu17, msu17_sol)
+
+msu17_DLI <- calc_DLI(msu17_df)
+
+msu17_day <- calc_day_mean(msu17_df)
+
+msu17_nite <- calc_nite_mean(msu17_df)
+```
+
+### 2018
+```{r}
+msu18 <- import_enviro("weather_data.xlsx", "MSUHort18", "MSU")
+
+msu18_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "EL18", "MSU") 
+
+msu18_df <- combine_dfs(msu18, msu18_sol)
+
+msu18_DLI <- calc_DLI(msu18_df)
+
+msu18_day <- calc_day_mean(msu18_df)
+
+msu18_nite <- calc_nite_mean(msu18_df)
+```
+
+### 2019
+```{r}
+msu19 <- import_enviro("weather_data.xlsx", "MSUHort19", "MSU")
+
+msu19_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "EL19", "MSU") 
+
+msu19_df <- combine_dfs(msu19, msu19_sol)
+
+msu19_DLI <- calc_DLI(msu19_df)
+
+msu19_day <- calc_day_mean(msu19_df)
+
+msu19_nite <- calc_nite_mean(msu19_df)
+```
+
+### 2020
+```{r}
+msu20 <- import_enviro("weather_data.xlsx", "MSUHort20", "MSU")
+
+msu20_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "EL20", "MSU") 
+
+msu20_df <- combine_dfs(msu20, msu20_sol)
+
+msu20_DLI <- calc_DLI(msu20_df)
+
+msu20_day <- calc_day_mean(msu20_df)
+
+msu20_nite <- calc_nite_mean(msu20_df)
+```
+
+### 2021
+```{r}
+msu21 <- import_enviro("weather_data.xlsx", "MSUHort21", "MSU")
+
+msu21_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "EL21", "MSU") 
+
+msu21_df <- combine_dfs(msu21, msu21_sol)
+
+msu21_DLI <- calc_DLI(msu21_df)
+
+msu21_day <- calc_day_mean(msu21_df)
+
+msu21_nite <- calc_nite_mean(msu21_df)
+```
+
+
+# NWMHRC
+The section below executes each of the custom functions on data from Michigan Northwest Horticultre Research Station in Traverse City. This will generate three data frames of interest, DLI, daily night time averages, daily day time averages. 
+### 2021
+```{r}
+tc21 <- import_enviro("weather_data.xlsx", "NWMHRC21", "TC")
+
+tc21_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "TC21", "TC") 
+
+tc21_df <- combine_dfs(tc21, tc21_sol)
+
+tc21_DLI <- calc_DLI(tc21_df)
+
+tc21_day <- calc_day_mean(tc21_df)
+
+tc21_nite <- calc_nite_mean(tc21_df)
+```
+
+### 2022
+```{r}
+tc22 <- import_enviro("weather_data.xlsx", "NWMHRC22", "TC")
+
+tc22_sol <- import_solar("Sunset_data_Ea_phage.xlsx", "TC22", "TC") 
+
+tc22_df <- combine_dfs(tc22, tc22_sol)
+
+tc22_DLI <- calc_DLI(tc22_df)
+
+tc22_day <- calc_day_mean(tc22_df)
+
+tc22_nite <- calc_nite_mean(tc22_df)
+```
+
+
+# Export tables
+### DLI
+```{r}
+# New York
+rbind(ny18_DLI, ny19_DLI, ny20_DLI, ny21_DLI) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 0) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/NY_DLI.csv")
+
+# North Carolina
+rbind(nc19_DLI, nc21_DLI, nc22_DLI) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 0) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/NC_DLI.csv")
+
+# Conn
+ct20_DLI %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 0) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/CT_DLI.csv")
+
+# Michigan 
+rbind(msu17_DLI, msu18_DLI, msu19_DLI, msu20_DLI, msu21_DLI, tc21_DLI, tc22_DLI) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 0) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/MI_DLI.csv")
+```
+
+### Daily & nightly averages
+Combine data frames from New York, export as CSV table. 
+```{r}
+# Day time averages
+rbind(ny18_day, ny19_day, ny20_day, ny21_day) %>% 
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/NY_day_avg.csv")
+# Night time averages
+rbind(ny18_nite, ny19_nite, ny20_nite, ny21_nite) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/NY_nite_avg.csv")
+```
+
+Combine data frames from North Carolina, export as CSV table. 
+```{r}
+# Day time averages
+rbind(nc19_day, nc21_day, nc22_day) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/NC_day_avg.csv")
+# Night time averages
+rbind(nc19_nite, nc21_nite, nc22_nite) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/NC_nite_avg.csv")
+```
+
+Export tables from CT as CSV table. 
+```{r}
+ct20_day %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/CT_day_avg.csv")
+
+ct20_nite %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/CT_nite_avg.csv")
+```
+
+Combine data frames from Michigan, export as CSV table. 
+```{r}
+# Day time averages
+rbind(msu17_day, msu18_day, msu19_day, msu20_day, msu21_day, tc21_day, tc22_day) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/MI_day_avg.csv")
+# Night time averages
+rbind(msu17_nite, msu18_nite, msu19_nite, msu20_nite, msu21_nite, tc21_nite, tc22_nite) %>%
+  select(Location, Year, Day, everything()) %>% 
+  mutate(across(4:8, round, digits = 1 ) ) %>%
+  arrange(Year, Day) %>%
+  write_delim(., delim = ",", na = "NA", col_names = TRUE, 
+              file = "weather_summary_tables/MI_nite_avg.csv")
+```
+
+-----
+end
