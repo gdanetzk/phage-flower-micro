@@ -1,0 +1,1151 @@
+---
+title: "phage UV Data"
+author: "Kristi Gdanetz MacCready"
+date: '2022-08-15'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE, collapse = TRUE)
+knitr::opts_knit$set(root.dir = "~/Documents/Flower_Microbiome/")
+```
+
+# Load libraries 
+```{r, warning=FALSE, message=FALSE}
+library(vegan)
+library(tidyverse)
+library(readxl)
+library(cowplot)
+theme_set(theme_cowplot())
+set.seed(4)
+source("~/Documents/GitHub/DenefLab-MicrobeMiseq/R/miseqR.R")
+```
+
+# Import data
+### UV-A
+```{r}
+# Phage 21
+uva_21n <- read_excel(path = "UV-A kill curve.xlsx", sheet = "UVA 21 Naked",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1", 
+         "Avg_PFU" = "average",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-A",
+             Treatment = "unprotected")
+# Phage 31
+uva_31n <- read_excel(path = "UV-A kill curve.xlsx", sheet = "UVA 31 Naked",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "average",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-A",
+             Treatment = "unprotected")
+```
+
+### UV-B
+##### Phage 21
+```{r}
+# control
+uvb_21n <- read_excel(path = "UV B kill curves.xlsx", sheet = "21 Naked",
+                      range = "m1:q6", col_names = TRUE) %>%
+  rename("Time (s)" = "kj/second", 
+         "Avg_PFU" = "Θ21 Naked",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-B",
+             Treatment = "unprotected")
+# peptone
+uvb_21_p5 <- read_excel(path = "UV B kill curves.xlsx", sheet = "21 5mgml pep.",
+                        range = "n1:r6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ21, 5mg/ml",
+         "StDev" = "st. dev",
+         "N" = "n",
+         "StErr" = "st. error") %>%
+  add_column(Phage = "21",
+             UV = "UV-B",
+             Treatment = "Peptone 5 mg/ml")
+
+uvb_21_p10 <- read_excel(path = "UV B kill curves.xlsx", sheet = "21 10mgml pep",
+                         range = "n1:r6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ21, 10 mg/ml",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-B",
+             Treatment = "Peptone 10 mg/ml")
+# surround
+uvb_21_s1 <- read_excel(path = "UV B kill curves.xlsx", sheet = "21 1% surround",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ21, 1% suround",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 1% FR")
+
+uvb_21_s2 <- read_excel(path = "UV B kill curves.xlsx", sheet = "21 2% Surround",
+                      range = "m2:q7", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ21, 2% Surround",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 2% FR")
+
+uvb_21_s4 <- read_excel(path = "UV B kill curves.xlsx", sheet = "21 4% surround",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ21, 4% surround",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 4% FR")
+
+uvb_21_s8 <- read_excel(path = "UV B kill curves.xlsx", sheet = "21 8% Surround",
+                      range = "m2:q7", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ21, 8% surround",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 8% FR")
+```
+##### Phage 31
+```{r}
+# control
+uvb_31n <- read_excel(path = "UV B kill curves.xlsx", sheet = "31 naked",
+                      range = "l1:p6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ31 naked",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-B",
+             Treatment = "unprotected")
+# peptone
+uvb_31_p5 <- read_excel(path = "UV B kill curves.xlsx", sheet = "31 5mgml pep",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ31, 5mg/ml",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-B",
+             Treatment = "Peptone 5 mg/ml")
+
+uvb_31_p10 <- read_excel(path = "UV B kill curves.xlsx", sheet = "31 10mgml",
+                      range = "l1:p6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ31, 10 mg/ml",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-B",
+             Treatment = "Peptone 10 mg/ml")
+
+# surround
+uvb_31_s1 <- read_excel(path = "UV B kill curves.xlsx", sheet = "31 1% Surround",
+                      range = "l2:p7", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         Avg_PFU = "Θ31, 1% surround",
+         StDev = "st dev",
+         N = "n",
+         StErr = "st error" ) %>%
+  add_column(Phage = "31",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 1% FR")
+
+uvb_31_s2 <- read_excel(path = "UV B kill curves.xlsx", sheet = "31 2% Surround",
+                      range = "m2:q7", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ31, 2% surround",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 2% FR")
+
+uvb_31_s4 <- read_excel(path = "UV B kill curves.xlsx", sheet = "31 4% surround",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ31, 4% surround",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 4% FR")
+
+uvb_31_s8 <- read_excel(path = "UV B kill curves.xlsx", sheet = "31 8% Surround",
+                      range = "m2:q7", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "Θ31, 8% surround",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-B",
+             Treatment = "Kaolin clay 8% FR")
+```
+
+### UV-C
+##### Phage 21
+```{r}
+# control 
+uvc_21n <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 Naked",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1", 
+         "Avg_PFU" = "21 Naked",
+         "StDev" = "st. dev",
+         "N" = "n",
+         "StErr" = "st. error") %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "unprotected") %>%
+  mutate(`Time (s)` = recode(`Time (s)`, "0" = "0", "60" = "90", "120" = "180", "180" = "270", "240" = "360"))
+
+# peptone
+uvc_21_p50 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 50 mg ml",
+                         range = "l1:p6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "21 50mg/ml",
+         "StDev" = "st. dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Peptone 50 mg/ml")
+
+uvc_21_p10 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 10mgml",
+                         range = "m1:q6", col_names = TRUE, na = c("", " ")) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "21 10mg/ml",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Peptone 10 mg/ml")
+
+uvc_21_p5 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 5 mgml",
+                         range = "l1:p6", col_names = TRUE, na = c("", " ")) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "21 5mg/ml",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Peptone 5 mg/ml")
+
+# carrot 
+uvc_21_c1 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 1%carrot",
+                        range = "q4:u12", col_names = c("0", "90", "180", "270", "360"))  %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Carrot juice 1%") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise("Avg_PFU" = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_21_c10 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 10% Carrot",
+                         range = "o23:s31", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Carrot juice 10%") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise("Avg_PFU" = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+# surround
+uvc_21_s1 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 1% Surround",
+                        range = "q11:u19", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 1% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise("Avg_PFU" = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_21_s2 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 2% surround",
+                        range = "q16:u24", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 2% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise("Avg_PFU" = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_21_s4 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 4% surround",
+                        range = "o13:s21", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 4% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise("Avg_PFU" = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_21_s8 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "21 8% surround",
+                        range = "q13:u21", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "21",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 8% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise("Avg_PFU" = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+```
+##### Phage 31
+```{r}
+# control 
+uvc_31n <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 Naked",
+                      range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "31 naked",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "unprotected") %>%
+  mutate(`Time (s)` = recode(`Time (s)`, "0" = "0", "69" = "90", "138" = "180", "207" = "270", "276" = "360"))
+
+# peptone
+uvc_31_p50 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 50mgml",
+                         range = "o10:s10", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Peptone 50 mg/ml") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise(Avg_PFU = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_31_p10 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 10mgml",
+                         range = "p23:t31", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Peptone 10 mg/ml") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise(Avg_PFU = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_31_p5 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 5mgml",
+                         range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "31 5mg/ml",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Peptone 5 mg/ml")
+
+# carrot 
+uvc_31_c1 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31  1%carrot",
+                        range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "averages",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Carrot juice 1%")
+
+uvc_31_c10 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 10% carrot",
+                        range = "m1:q6", col_names = TRUE) %>% 
+  rename("Time (s)" = "...1",
+         "Avg_PFU" = "31 10% carrot",
+         "StDev" = "st dev",
+         "N" = "n",
+         "StErr" = "st error") %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Carrot juice 10%")
+
+# surround
+uvc_31_s1 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 1% surround",
+                        range = "o10:s18", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 1% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise(Avg_PFU = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_31_s2 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 2% surround",
+                        range = "n21:r29", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 2% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise(Avg_PFU = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_31_s4 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 4% Surround",
+                        range = "n4:r12", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 4% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise(Avg_PFU = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+
+uvc_31_s8 <- read_excel(path = "UVC kill curves.xlsx UPDATED.xlsx", sheet = "31 8% surround",
+                        range = "n10:r18", col_names = c("0", "90", "180", "270", "360")) %>%
+  add_column(Phage = "31",
+             UV = "UV-C",
+             Treatment = "Kaolin clay 8% FR") %>%
+  pivot_longer(cols = c("0", "90", "180", "270", "360"),
+               names_to = "Time (s)",
+               values_to = "PFUs") %>%
+  group_by(`Time (s)`, Phage, UV, Treatment) %>%
+  summarise(Avg_PFU = mean(PFUs),
+            StDev = sd(PFUs),
+            N = n(), 
+            StErr = StDev / (sqrt(N)) )
+```
+
+
+# Format
+### Phage-21
+Combine data frames from individual experiments (treatment + UV)
+```{r}
+phage21 <- rbind(uva_21n, uvb_21n, uvc_21n, 
+                 uvb_21_p10, uvb_21_p5, 
+                 uvb_21_s1, uvb_21_s2, uvb_21_s4, uvb_21_s8, 
+                 uvc_21_c1, uvc_21_c10, 
+                 uvc_21_p10, uvc_21_p50, 
+                 uvc_21_s1, uvc_21_s2, uvc_21_s4, uvc_21_s8) %>%
+  mutate(`Time (s)` = as.numeric(`Time (s)`),
+         UV = factor(UV, ordered = TRUE,
+                     levels = c("UV-C", "UV-B", "UV-A")) )
+```
+
+### Phage-31
+```{r}
+phage31 <- rbind(uva_31n, uvb_31n, uvc_31n, 
+                 uvb_31_p10, uvb_31_p5, 
+                 uvb_31_s1, uvb_31_s2, uvb_31_s4, uvb_31_s8, 
+                 uvc_31_c1, uvc_31_c10, 
+                 uvc_31_p10, uvc_31_p50, 
+                 uvc_31_s1, uvc_31_s2, uvc_31_s4, uvc_31_s8) %>%
+  mutate(`Time (s)` = as.numeric(`Time (s)`),
+         UV = factor(UV, ordered = TRUE,
+                     levels = c("UV-C", "UV-B", "UV-A")) )
+```
+
+### Both phage
+```{r}
+phage_all <- rbind(phage21, phage31) %>%  
+  # # calcaulte means and st dev 
+  # group_by() %>%
+  # summarise() %>%
+  # final formatting for graph axes 
+  mutate(`Time (s)` = as.numeric(`Time (s)`),
+         UV = factor(UV, ordered = TRUE,
+                     levels = c("UV-C", "UV-B", "UV-A")), 
+         Treatment = factor(Treatment, ordered = TRUE,
+                           levels = c("Carrot juice 1%", "Carrot juice 10%",
+                                      "Peptone 5 mg/ml", "Peptone 10 mg/ml","Peptone 50 mg/ml",
+                                      "Surround 1% FR", "Surround 2% FR", "Surround 4% FR", "Surround 8% FR", 
+                                      "unprotected")) ) 
+```
+
+# Manuscript Figures
+### Unprotected
+```{r}
+plot_un <- filter(phage_all, Treatment == "unprotected") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Phage)) +
+  facet_grid(~UV, scales = "free_x") + 
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 20) + 
+  geom_line(size = 1.25) +
+  geom_point(size = 3) +
+  scale_color_manual(name = "Phage", 
+                     values = c("#ED1E24", "#40B9EB"), 
+                     labels = c(expression(phi~21-4), expression(phi~31-3)) ) +
+  ylab(expression(pfu~ml^-1)) + #ggtitle("Unprotected") +
+  # scale_x_continuous(name = "Time (s)", breaks = c(0, 30, 60, 90, 120, 150, 180, 
+  #                                                  210, 240, 270, 300, 330, 360)) +
+  theme(axis.text.x = element_text(size = 8, angle = -90, hjust = 0, vjust = 0.5), 
+        axis.text.y = element_text(size = 8), axis.title = element_text(size = 10), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm")) 
+
+plot_un
+```
+
+### Carrot
+```{r}
+# Phi 21
+plot_ct21 <- filter(phage_all, Phage == "21", UV == "UV-C",
+                  Treatment == "unprotected" |Treatment == "Carrot juice 1%"| Treatment == "Carrot juice 10%") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  #facet_grid(Phage~UV, scales = "fixed") + 
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 14) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  #ylab(expression(pfu~ml^-1) ) + #ggtitle("Carrot juice") +
+  scale_color_manual(name = "Treatment",
+                     values = c("#AC8BC0", "#5B51A3", "#ED1E24"), #med mauve, violet, red
+                     labels = c("Carrot juice 1%", "Carrot juice 10%", "Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 90, 180, 270, 360)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm")) 
+plot_ct21
+
+# Phi 31
+plot_ct31 <- filter(phage_all, Phage == "31", UV == "UV-C",
+                  Treatment == "unprotected" |Treatment == "Carrot juice 1%"| Treatment == "Carrot juice 10%") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 14) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#AC8BC0", "#5B51A3", "#ED1E24"),
+                     labels = c("Carrot juice 1%", "Carrot juice 10%", "Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 90, 180, 270, 360)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm")) 
+plot_ct31
+
+# Combine
+plot_ct <- plot_grid(plot_ct21 + theme(legend.position = "none"), 
+                     plot_ct31 + theme(legend.position = "none"), 
+                     nrow = 2, ncol = 1, labels = c("I", "J"))
+plot_ct
+```
+
+
+
+### Peptone
+5 mg = #70C6A5
+10 mg = #C5E5D7
+50 mg = #FCB64D
+```{r}
+# UVC, 21
+pep_21C <- filter(phage_all, UV == "UV-C", Phage == "21",
+                   Treatment == "unprotected" | Treatment == "Peptone 10 mg/ml" |
+                   Treatment == "Peptone 5 mg/ml" | Treatment == "Peptone 50 mg/ml") %>%
+  drop_na() %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  #facet_grid(Phage~UV, scales = "free_x") + 
+  #ylab(expression(PFUs~ml^-1)) + ggtitle("Peptone") +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 14) + 
+  geom_line(size = 1.0) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#C5E5D7",  "#FCB64D", "#ED1E24"), #"#FAA51A", #"Peptone 5 mg/ml",
+                     labels = c("Peptone 10 mg/ml",   "Peptone 50 mg/ml", "Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 90, 180, 270, 360)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm")) 
+pep_21C
+
+# UVC, 31
+pep_31C <- filter(phage_all, UV == "UV-C", Phage == "31",
+                   Treatment == "unprotected" | Treatment == "Peptone 10 mg/ml" |
+                   Treatment == "Peptone 5 mg/ml" | Treatment == "Peptone 50 mg/ml") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 14) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#C5E5D7",  "#FCB64D", "#ED1E24"), 
+                     labels = c("Peptone 10 mg/ml", "Peptone 50 mg/ml",  "Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 90, 180, 270, 360)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm")) 
+pep_31C
+
+# UVB, 21
+pep_21B <- filter(phage_all, UV == "UV-B", Phage == "21",
+                   Treatment == "unprotected" | Treatment == "Peptone 10 mg/ml" |
+                   Treatment == "Peptone 5 mg/ml" | Treatment == "Peptone 50 mg/ml") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 70) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#70C6A5", "#C5E5D7", "#ED1E24"),
+                     labels = c("Peptone 5 mg/ml", "Peptone 10 mg/ml", "Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 500, 1000, 1500, 2000)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm"))
+pep_21B
+
+# UVB, 31
+pep_31B <- filter(phage_all, UV == "UV-B", Phage == "31",
+                   Treatment == "unprotected" | Treatment == "Peptone 10 mg/ml" |
+                   Treatment == "Peptone 5 mg/ml" | Treatment == "Peptone 50 mg/ml") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 70) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#70C6A5", "#C5E5D7", "#ED1E24"), #orange, med mauve, dark pink
+                     labels = c("Peptone 5 mg/ml", "Peptone 10 mg/ml", "Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 500, 1000, 1500, 2000)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm"))
+pep_31B
+# Combine 
+plot_pep <- plot_grid(pep_21C + theme(legend.position = "none"), 
+                      pep_21B + theme(legend.position = "none"),
+                      pep_31C + theme(legend.position = "none"), 
+                      pep_31B + theme(legend.position = "none"),
+                      nrow = 2, ncol = 2, labels = c("E", "F", "G", "H")
+                      )
+plot_pep
+```
+
+### Kaolin clay
+```{r}
+# UVC, 21
+sur_21C <- filter(phage_all, UV == "UV-C", Phage == "21",
+                   Treatment == "Surround 1% FR" | Treatment == "Surround 2% FR" |
+                   Treatment == "Surround 4% FR" | Treatment == "Surround 8% FR" | Treatment == "unprotected") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  #facet_grid(Phage~UV, scales = "free_x") + 
+  #ylab(expression(PFUs~ml^-1)) + ggtitle("Kaolin clay") +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 14) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#C2DD89", "#71C054", "#40B9EB", "#426FB6", "#ED1E24"),
+                     labels = c("Kaolin clay 1% FR", "Kaolin clay 2% FR", "Kaolin clay 4% FR", 
+                                "Kaolin clay 8% FR","Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 90, 180, 270, 360)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm")) 
+sur_21C
+
+# UVC, 31
+sur_31C <- filter(phage_all, UV == "UV-C", Phage == "31",
+                   Treatment == "Surround 1% FR" | Treatment == "Surround 2% FR" |
+                   Treatment == "Surround 4% FR" | Treatment == "Surround 8% FR" | Treatment == "unprotected") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 14) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#C2DD89", "#71C054", "#40B9EB", "#426FB6", "#ED1E24"),
+                     labels = c("Kaolin clay 1% FR", "Kaolin clay 2% FR", "Kaolin clay 4% FR", 
+                                "Kaolin clay 8% FR","Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 90, 180, 270, 360)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm")) 
+sur_31C
+
+# UVB, 21
+sur_21B <- filter(phage_all, UV == "UV-B", Phage == "21",
+                   Treatment == "Surround 1% FR" | Treatment == "Surround 2% FR" |
+                   Treatment == "Surround 4% FR" | Treatment == "Surround 8% FR" | Treatment == "unprotected") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 70) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#C2DD89", "#71C054", "#40B9EB", "#426FB6", "#ED1E24"),
+                     labels = c("Kaolin clay 1% FR", "Kaolin clay 2% FR", "Kaolin clay 4% FR", 
+                                "Kaolin clay 8% FR","Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 500, 1000, 1500, 2000)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm"))
+sur_21B
+
+# UVB, 31
+sur_31B <- filter(phage_all, UV == "UV-B", Phage == "31",
+                   Treatment == "Surround 1% FR" | Treatment == "Surround 2% FR" |
+                   Treatment == "Surround 4% FR" | Treatment == "Surround 8% FR" | Treatment == "unprotected") %>%
+  ggplot(aes(x = `Time (s)`, y = Avg_PFU, color = Treatment, group = Treatment)) +
+  geom_errorbar(aes(y = Avg_PFU,
+                    ymin = Avg_PFU - StErr,
+                    ymax = Avg_PFU + StErr), width = 70) + 
+  geom_line(size = 1) + geom_point(size = 1.5) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#C2DD89", "#71C054", "#40B9EB", "#426FB6", "#ED1E24"), 
+                                #med yel gr, green, blue, red
+                     labels = c("Kaolin clay 1% FR", "Kaolin clay 2% FR", "Kaolin clay 4% FR", 
+                                "Kaolin clay 8% FR","Unprotected" )) +
+  scale_x_continuous(name = "Time (s)", breaks = c(0, 500, 1000, 1500, 2000)) +
+  scale_y_continuous(name = expression(pfu~ml^-1), limits = c(0, 8),
+                     breaks = c(0, 1, 2, 3, 4, 5, 6, 7, 8) ) +
+  theme(axis.text = element_text(size = 6), axis.title = element_text(size = 8), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), plot.margin = unit(c(0, 0, 0, 0), "mm"))
+sur_31B
+
+# Combine 
+plot_sur <- plot_grid(sur_21C + theme(legend.position = "none"), 
+                      sur_21B + theme(legend.position = "none"),
+                      sur_31C + theme(legend.position = "none"), 
+                      sur_31B + theme(legend.position = "none"),
+                      nrow = 2, ncol = 2, labels = c("A", "B", "C", "D")
+                      )
+plot_sur
+```
+
+# Bloom 2019
+### Import data
+```{r}
+bloom19_0 <- read_excel(path = "Bloom 2019 stats.xlsx", sheet = "stigma 1",
+                        col_names = TRUE, na = c("NA", "", " ")) %>% 
+  drop_na() %>% 
+  select("Treatment", "avg log10 CFU/flower",	"std dev", "std error") %>%
+  rename(Avg_CFU = "avg log10 CFU/flower",
+         StDev = "std dev",
+         StErr = "std error") %>%
+  add_column(N = 5,
+             "Time (hrs)" = 0)
+
+bloom19_12 <- read_excel(path = "Bloom 2019 stats.xlsx", sheet = "stigma 2",
+                         col_names = TRUE, na = c("NA", "", " ")) %>% 
+  drop_na() %>% 
+  select("Treatment", "avg log10 CFU/flower",	"std dev", "std error") %>%
+  rename(Avg_CFU = "avg log10 CFU/flower",
+         StDev = "std dev",
+         StErr = "std error") %>%
+  add_column(N = 5,
+             "Time (hrs)" = 12)
+
+bloom19_24 <- read_excel(path = "Bloom 2019 stats.xlsx", sheet = "stigma3",
+                         col_names = TRUE, na = c("NA", "", " ")) %>% 
+  drop_na() %>% 
+  select("Treatment", "avg log10 CFU/flower",	"std dev", "std error") %>%
+  rename(Avg_CFU = "avg log10 CFU/flower",
+         StDev = "std dev",
+         StErr = "std error") %>%
+  add_column(N = 5,
+             "Time (hrs)" = 24)
+
+bloom19_48 <- read_excel(path = "Bloom 2019 stats.xlsx", sheet = "stigma 4",
+                         range = "a1:n46", col_names = TRUE, na = c("NA", "", " ")) %>% 
+  drop_na() %>% 
+  select("Treatment", "avg log10 CFU/flower",	"std dev", "std error") %>%
+  rename(Avg_CFU = "avg log10 CFU/flower",
+         StDev = "std dev",
+         StErr = "std error") %>%
+  add_column(N = 5,
+             "Time (hrs)" = 48)
+```
+
+### Format data
+```{r}
+bloom19 <- rbind(bloom19_0, bloom19_12, bloom19_24, bloom19_48) %>%
+  mutate(Treatment = recode(Treatment,
+                            "1" = "phi-21, surf",
+                            "2" = "phi-31, surf",
+                            "3" = "both, surf",
+                            "4" = "phi-21, 5mg pep, surf",
+                            "5" = "phi-31, 5mg pep, surf",
+                            "6" = "both, 5mg pep, surf",
+                            "7" = "surf",
+                            "8" = "water",
+                            "9" = "5mg pep"),
+         Treatment = factor(Treatment, ordered = TRUE, 
+                            levels = c("surf", 
+                                       "phi-21, surf", "phi-31, surf", "both, surf",
+                                       "5mg pep", 
+                                       "phi-21, 5mg pep, surf",  "phi-31, 5mg pep, surf", "both, 5mg pep, surf",
+                                       "water")) ) 
+```
+
+### Make plots
+all together
+```{r}
+# peptone at 5 mg/ml
+plot_b19 <- bloom19 %>%
+  ggplot(aes(x = `Time (hrs)`, y = Avg_CFU, group = Treatment, color = Treatment)) +
+  geom_errorbar(aes(y = Avg_CFU,
+                    ymin = Avg_CFU - StErr,
+                    ymax = Avg_CFU + StErr), width = 1) + 
+  geom_line() + geom_point(size = 3) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#AC8BC0", 
+                                "#5B51A3", "#40B9EB", "#426FB6",
+                                "#E7B3D3", "#FAA51A", 
+                                "#C2DD89", "#71C054",  #"#D0499A", 
+                                "#ED1E24"),
+                     breaks = c("surf", 
+                                "phi-21, surf", "phi-31, surf", "both, surf",
+                                "5mg pep", 
+                                "phi-21, 5mg pep, surf",  "phi-31, 5mg pep, surf", "both, 5mg pep, surf",
+                                "water"),
+                     labels = c("Surfactant", 
+                                expression(phi~"21+surfactant"), expression(phi~"31+surfactant"),
+                                expression(phi~"21+"~phi~"31+surfactant"), 
+                                "Peptone", 
+                                expression(phi~"21+peptone+surfactant"), expression(phi~"31+peptone+surfactant"), 
+                                expression(phi~"21+"~phi~"31+peptone+surfactant"),
+                                "Water" ) ) + 
+  ylab(expression(log[10]~CFU~ml^-1)) + 
+  scale_x_continuous(name = "Time (hrs)", breaks = c(0, 12, 24, 36, 48)) +
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 10), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), legend.text.align = 0)
+plot_b19
+```
+
+surfactants
+```{r}
+plot_b19s <- bloom19 %>%
+  filter(Treatment == "phi-21, surf" | Treatment == "phi-31, surf" | 
+           Treatment == "both, surf" | Treatment == "water") %>% 
+  ggplot(aes(x = `Time (hrs)`, y = Avg_CFU, group = Treatment, color = Treatment)) +
+  geom_errorbar(aes(y = Avg_CFU,
+                    ymin = Avg_CFU - StErr,
+                    ymax = Avg_CFU + StErr), width = 1) + 
+  geom_line() + geom_point(size = 3) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#5B51A3", "#40B9EB",   "#426FB6", "#AC8BC0",  
+                                "#E7B3D3", "#FAA51A", 
+                                "#C2DD89", "#71C054",  #"#D0499A", 
+                                "#ED1E24"),
+                     breaks = c("surf", 
+                                "phi-21, surf", "phi-31, surf", "both, surf",
+                                "5mg pep", 
+                                "phi-21, 5mg pep, surf",  "phi-31, 5mg pep, surf", "both, 5mg pep, surf",
+                                "water"),
+                     labels = c("Surfactant", 
+                                expression(phi~21), expression(phi~31),
+                                expression(phi~"21+"~phi~31), 
+                                "Peptone", 
+                                expression(phi~"21+peptone"), expression(phi~"31+peptone"), 
+                                expression(phi~"21+"~phi~"31+peptone"),
+                                "Water" ) ) + 
+  ylab(expression(log[10]~CFU~ml^-1)) + 
+  scale_x_continuous(name = "Time (hrs)", breaks = c(0, 12, 24, 36, 48)) +
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 10), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), legend.text.align = 0)
+plot_b19s
+```
+
+peptone
+```{r}
+plot_b19p <- bloom19 %>%
+  filter(Treatment == "5mg pep" | Treatment == "phi-21, 5mg pep, surf" |
+           Treatment == "phi-31, 5mg pep, surf" | Treatment == "both, 5mg pep, surf" | Treatment == "water") %>% 
+  ggplot(aes(x = `Time (hrs)`, y = Avg_CFU, group = Treatment, color = Treatment)) +
+  geom_errorbar(aes(y = Avg_CFU,
+                    ymin = Avg_CFU - StErr,
+                    ymax = Avg_CFU + StErr), width = 1) + 
+  geom_line() + geom_point(size = 3) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#AC8BC0", 
+                                "#5B51A3", "#40B9EB", "#426FB6",
+                                "#E7B3D3","#C2DD89", "#71C054",  "#FAA51A",  #"#D0499A", 
+                                "#ED1E24"),
+                     breaks = c("surf", 
+                                "phi-21, surf", "phi-31, surf", "both, surf",
+                                "5mg pep", 
+                                "phi-21, 5mg pep, surf",  "phi-31, 5mg pep, surf", "both, 5mg pep, surf",
+                                "water"),
+                     labels = c("Surfactant", 
+                                expression(phi~21), expression(phi~31),
+                                expression(phi~"21+"~phi~31), 
+                                "Peptone", 
+                                expression(phi~"21+peptone"), expression(phi~"31+peptone"), 
+                                expression(phi~"21+"~phi~"31+peptone"),
+                                "Water" ) ) + 
+  ylab(expression(log[10]~CFU~ml^-1)) + 
+  scale_x_continuous(name = "Time (hrs)", breaks = c(0, 12, 24, 36, 48)) +
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 10), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), legend.text.align = 0)
+plot_b19p
+```
+
+# Bloom 2020
+### Import & format
+Kit Jon counts
+```{r}
+bloomKJ <- read_excel(path = "2020 bloom.xlsx", sheet = "Kit Jons",
+                        range = "o3:t94", col_names = TRUE, na = c("NA", "", " ")) %>% 
+  drop_na() %>% 
+  rename(Avg_CFU = "log10cfu/ml",
+         StDev = "stdev",
+         N = "n",
+         StErr = "st error") %>%
+  mutate(Applications = recode(Treatment,
+                               "trt 1-Agriphage"  = "single",
+                               "trt2-agriphage+5mg ml-1" = "single",
+                               "trt3-Agriphage +Kaolin clay" =  "single",    
+                               "trt4-Water"  = "single", 
+                               "trt5-Kaolin clay" = "single",
+                               "trt6-5mg ml-1" = "single",
+                               "trt7-agriphage" = "double",
+                               "trt8-agripahge+5mg ml-1" = "double",
+                               "trt9-Agriphage+surround" = "double",
+                               "trt10-Water" = "double", 
+                               "trt11-Kaolin clay" = "double",
+                               "trt12- 5mg ml-1" = "double"),
+         Treatment = recode(Treatment, 
+                            "trt 1-Agriphage"  = "Agriphage",
+                            "trt2-agriphage+5mg ml-1" = "Agriphage+peptone",
+                            "trt3-Agriphage +Kaolin clay" =  "Agriphage+surround",    
+                            "trt4-Water"  = "Water", 
+                            "trt5-Kaolin clay" = "Kaolin clay",
+                            "trt6-5mg ml-1" = "Peptone",
+                            "trt7-agriphage" = "Agriphage",
+                            "trt8-agripahge+5mg ml-1" = "Agriphage+peptone",
+                            "trt9-Agriphage+surround" = "Agriphage+surround",
+                            "trt10-Water" = "Water", 
+                            "trt11-Kaolin clay" = "Kaolin clay",
+                            "trt12- 5mg ml-1" = "Peptone"),
+         Time = recode(Time, "0hrs" = "0", "16hrs" = "16",
+                       "24hrs" = "24", "48hrs" = "48", "72hrs" = "72"),
+         Time = as.numeric(Time)) %>%
+  add_column(Cultivar = "Kit Jon")
+```
+
+Golden delicious counts
+```{r}
+bloomGD <- read_excel(path = "2020 bloom.xlsx", sheet = "Golden Delicious",
+                        range = "o1:t33", col_names = TRUE, na = c("NA", "", " ")) %>%
+  drop_na() %>% unique() %>%
+  filter(Treatment != "Treatment") %>%
+  rename(Avg_CFU = "avg CFU",
+         StDev = "st dev",
+         N = "n",
+         StErr = "st error",
+         Time = Timepoint) %>%
+  mutate(Treatment = recode(Treatment, 
+                            "trt2-agriphage+5mg/ml peptone" = "Agriphage+peptone",
+                            "trt 4- Water"  = "Water", 
+                            "trt7-agriphage" = "Agriphage",
+                            "trt 10-Water" = "Water"),
+         Time = recode(Time, "0hrs" = "0", "16hrs" = "16",
+                       "24hrs" = "24", "48hrs" = "48", "72hrs" = "72") ) %>%
+  add_column(Applications = "NA",
+             Cultivar = "Golden Delicious")
+```
+
+Combine
+```{r}
+bloom20 <- rbind(bloomKJ, bloomGD)
+```
+
+### Plot
+Single application
+```{r}
+# peptone at 5 mg/ml, what percent surround? 
+plot_b20_1 <- bloom20 %>%
+  filter(Applications == "single") %>% 
+  ggplot(aes(x = Time, y = Avg_CFU, group = Treatment, color = Treatment)) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_errorbar(aes(y = Avg_CFU,
+                    ymin = Avg_CFU - StErr,
+                    ymax = Avg_CFU + StErr), width = 1) + 
+  geom_line() + geom_point(size = 3) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#40B9EB", #"#5B51A3",  
+                                "#FAA51A", "#D0499A",  
+                                "#71C054",  "#426FB6",
+                                "#ED1E24")) +
+  ylab(expression(log[10]~CFU~ml^-1)) + 
+  scale_x_continuous(name = "Time (hrs)", breaks = c(0, 12, 24, 36, 48, 60, 72)) +
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 10), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), legend.text.align = 0)
+plot_b20_1
+```
+
+Double application
+```{r}
+# peptone at 5 mg/ml, what percent surround? 
+plot_b20_2 <- bloom20 %>%
+  filter(Applications == "double") %>% 
+  ggplot(aes(x = Time, y = Avg_CFU, group = Treatment, color = Treatment)) +
+  geom_vline(xintercept = 0, linetype = "dashed") +
+  geom_vline(xintercept = 48, linetype = "dashed") +
+  geom_errorbar(aes(y = Avg_CFU,
+                    ymin = Avg_CFU - StErr,
+                    ymax = Avg_CFU + StErr), width = 1) + 
+  geom_line() + geom_point(size = 3) +
+  scale_color_manual(name = "Treatment",
+                     values = c("#40B9EB", #"#5B51A3",  
+                                "#FAA51A", "#D0499A",  
+                                "#71C054",  "#426FB6",
+                                "#ED1E24")) +
+  ylab(expression(log[10]~CFU~ml^-1)) + 
+  scale_x_continuous(name = "Time (hrs)", breaks = c(0, 12, 24, 36, 48, 60, 72)) +
+  theme(axis.text = element_text(size = 8), axis.title = element_text(size = 10), 
+        strip.text = element_text(size = 10),
+        legend.text = element_text(size = 8), legend.title = element_text(size=8),
+        legend.key.size = unit(2.5, "mm"), legend.text.align = 0)
+plot_b20_2
+```
+
+
+
+# Save figures
+```{r}
+# in vitro
+ggsave2(plot = plot_un, filename = "figures/unprotected_invitro.tif", 
+        device = "tiff", units = "mm", width = 178, height = 178, dpi = 300)
+ggsave2(plot = plot_ct, filename = "figures/carrot_invitro.tif", 
+        device = "tiff", units = "mm", width = 178, height = 178, dpi = 300)
+ggsave2(plot = plot_pep, filename = "figures/peptone_invitro.tif", 
+        device = "tiff", units = "mm", width = 178, height = 178, dpi = 300)
+ggsave2(plot = plot_sur, filename = "figures/surround_invitro.tif", 
+        device = "tiff", units = "mm", width = 178, height = 178, dpi = 300)
+```
+
+Save SVG versions
+```{r}
+# Figure 1
+leg_unprot <- get_legend(plot_un)
+ggsave2(plot = plot_un+theme(legend.position = "none"), 
+        filename = "figures/Fig1_unprotected_invitro.svg", 
+        device = "svg", units = "mm", width = 85, height = 85, dpi = 600)
+# Figure 2
+leg_2a <- get_legend(plot_sur)
+leg_2b <- get_legend(plot_pep)
+leg_2c <- get_legend(plot_ct)
+Fig2 <- plot_grid(plot_sur+theme(legend.position = "none"),
+                  plot_pep+theme(legend.position = "none"),
+                  plot_ct+theme(legend.position = "none"),
+                  nrow = 1, ncol = 3, rel_widths = c(1, 1, 0.5))
+ggsave2(plot = Fig2, filename = "figures/Fig2_invitro.svg", 
+        device = "svg", units = "mm", width = 178, height = 100, dpi = 600)
+
+# Legends
+leg_all <- plot_grid(leg_unprot, leg_2a, leg_2b, leg_2c)
+ggsave2(plot = leg_all, filename = "figures/Fig1-3_legends.svg", 
+        device = "svg", units = "mm", width = 85, height = 85, dpi = 600)
+```
+
+-----
+end
